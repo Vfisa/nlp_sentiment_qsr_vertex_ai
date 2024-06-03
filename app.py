@@ -216,7 +216,7 @@ with col1:
                            'url'],
                 use_container_width=True, hide_index=True)
 
-@st.cache_data
+#@st.cache_data
 def generate_wordcloud(word_freq, mask_image_path):
     colormap = mcolors.ListedColormap(['#4285F4', '#34A853', '#FBBC05', '#EA4335'])
     mask_image = np.array(Image.open(mask_image_path))
