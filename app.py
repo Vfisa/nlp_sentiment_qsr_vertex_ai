@@ -72,7 +72,7 @@ st.set_page_config(layout='wide')
 image_path = os.path.dirname(os.path.abspath(__file__))
 
 keboola_logo = image_path+"/static/keboola_logo.png"
-logo_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(keboola_logo, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
+logo_html = f'<div style="display: flex; justify-content: center;"><img src="data:image/png;base64,{base64.b64encode(open(keboola_logo, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
 st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
 st.title('London Eye Reviews Sentiment Analysis')
@@ -80,8 +80,13 @@ st.title('London Eye Reviews Sentiment Analysis')
 data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
 keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
 
-data = pd.read_csv(data_path, parse_dates=['parsed_date'])
-keywords = pd.read_csv(keywords_path)
+@st.cache_data
+def get_data():
+    data = pd.read_csv(data_path, parse_dates=['parsed_date'])
+    keywords = pd.read_csv(keywords_path)
+    return data, keywords
+
+data, keywords = get_data()
 
 data['sentiment_category'] = data['sentiment'].apply(categorize_sentiment)
 data['parsed_date'] = pd.to_datetime(data['parsed_date'])
@@ -216,7 +221,7 @@ with col1:
                            'url'],
                 use_container_width=True, hide_index=True)
 
-#@st.cache_data
+@st.cache_data
 def generate_wordcloud(word_freq, mask_image_path):
     colormap = mcolors.ListedColormap(['#4285F4', '#34A853', '#FBBC05', '#EA4335'])
     mask_image = np.array(Image.open(mask_image_path))
@@ -233,7 +238,7 @@ def generate_wordcloud(word_freq, mask_image_path):
     # Ensure the wordcloud_array is of type uint8
     if wordcloud_array.dtype != np.uint8:
         wordcloud_array = wordcloud_array.astype(np.uint8)
-
+    
     return wordcloud_array
     
 summary = keywords_filtered.groupby('keywords')['counts'].sum().reset_index()
