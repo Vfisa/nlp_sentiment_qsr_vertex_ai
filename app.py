@@ -77,8 +77,8 @@ st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
 st.title('London Eye Reviews Sentiment Analysis')
 
-data_path = '/data/in/tables/reviews_sentiment_final.csv'
-keywords_path = '/data/in/tables/reviews_keywords_final.csv'
+data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
+keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
 
 data = pd.read_csv(data_path, parse_dates=['parsed_date'])
 keywords = pd.read_csv(keywords_path)
