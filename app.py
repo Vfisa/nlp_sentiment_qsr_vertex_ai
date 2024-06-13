@@ -72,7 +72,7 @@ st.set_page_config(layout='wide')
 image_path = os.path.dirname(os.path.abspath(__file__))
 
 keboola_logo = image_path+"/static/keboola_logo.png"
-logo_html = f'<div style="display: flex; justify-content: center;"><img src="data:image/png;base64,{base64.b64encode(open(keboola_logo, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
+logo_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(keboola_logo, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
 st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
 st.title('London Eye Reviews Sentiment Analysis')
@@ -221,7 +221,7 @@ with col1:
                            'url'],
                 use_container_width=True, hide_index=True)
 
-@st.cache_data
+#@st.cache_data
 def generate_wordcloud(word_freq, mask_image_path):
     colormap = mcolors.ListedColormap(['#4285F4', '#34A853', '#FBBC05', '#EA4335'])
     mask_image = np.array(Image.open(mask_image_path))
@@ -263,7 +263,7 @@ with col2:
         
 # Gemini response
 keboola_gemini = image_path + "/static/keboola_gemini.png"
-gemini_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(keboola_gemini, "rb").read()).decode()}" style="width: 60px; margin-top: 30px;"></div>'
+gemini_html = f'<div style="display: flex; justify-content: center;"><img src="data:image/png;base64,{base64.b64encode(open(keboola_gemini, "rb").read()).decode()}" style="width: 60px; margin-top: 30px;"></div>'
 st.markdown(f'{gemini_html}', unsafe_allow_html=True)
 
 st.markdown("""
