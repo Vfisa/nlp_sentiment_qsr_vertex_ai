@@ -64,8 +64,8 @@ def generate(content):
         )
         return "".join(response.text for response in responses)
     except Exception as e:
-        st.error(f"An error occurred during content generation: {e}")
-        return None
+        st.error(f"An error occurred during content generation. Please try again.")
+        return ''
 
 st.set_page_config(layout='wide')
 
@@ -80,13 +80,8 @@ st.title('London Eye Reviews Sentiment Analysis')
 data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
 keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
 
-@st.cache_data
-def get_data():
-    data = pd.read_csv(data_path, parse_dates=['parsed_date'])
-    keywords = pd.read_csv(keywords_path)
-    return data, keywords
-
-data, keywords = get_data()
+data = pd.read_csv(data_path, parse_dates=['parsed_date'])
+keywords = pd.read_csv(keywords_path)
 
 data['sentiment_category'] = data['sentiment'].apply(categorize_sentiment)
 data['parsed_date'] = pd.to_datetime(data['parsed_date'])
@@ -272,22 +267,31 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+if 'generated_responses' not in st.session_state:
+    st.session_state['generated_responses'] = {}
+
 if selected_data['is_widget'].sum() == 1:
-    gemini_data = selected_data[selected_data['is_widget'] == True]['text_in_english']
-    review_text = gemini_data.iloc[0] if not gemini_data.empty else st.warning('No review found.')
+    selected_review = selected_data[selected_data['is_widget'] == True]['text_in_english'].iloc[0]
+    review_text = selected_review if selected_review else st.warning('No review found.')
     st.write(f'_Review:_\n\n{review_text}')
 
-    selected_row = selected_data[selected_data['is_widget'] == True]
-
+    #selected_row = selected_data[selected_data['is_widget'] == True]
     if st.button('Generate response'):
-        with st.spinner('🤖 Generating response, please wait...'):
-            prompt = f"""
-            You are given a review on London Eye, UK. Pretend you're a social media manager for the London Eye and write a short (3-5 sentence) response to this review. Only return the response.
-            
-            Review:
-            {review_text}
-            """
-            response = generate(prompt)
-            st.write(f"_Response:_\n\n{response}")
+        if review_text in st.session_state['generated_responses']:
+            response = st.session_state['generated_responses'][review_text]
+        else:
+            with st.spinner('🤖 Generating response, please wait...'):
+                prompt = f"""
+                You are given a review on London Eye, UK. Pretend you're a social media manager for the London Eye and write a short (3-5 sentence) response to this review. Only return the response.
+                
+                Review:
+                {review_text}
+                """
+                response = generate(prompt)
+                if response:
+                    st.session_state['generated_responses'][review_text] = response
+                else:
+                    st.error("Something went wrong, please try again.")
+        st.write(f"_Response:_\n\n{response}")
 else:
     st.info('Select the review you want to respond to in the table above.')
