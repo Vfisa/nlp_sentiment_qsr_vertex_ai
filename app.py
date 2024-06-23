@@ -119,15 +119,13 @@ with col3:
         default_date_range = ()
 
     date_range = st.date_input("Select a date range:", default_date_range, min_value=min_date, max_value=max_date)
-if date_range:
-    try:
-        if len(date_range) == 2:
-            start_date, end_date = date_range
-            data = data[(data['parsed_date'] >= pd.to_datetime(start_date)) & (data['parsed_date'] <= pd.to_datetime(end_date))]
-            keywords_filtered = keywords_filtered[(keywords_filtered['parsed_date'] >= pd.to_datetime(start_date)) & (keywords_filtered['parsed_date'] <= pd.to_datetime(end_date))]
-    except Exception as e:
-        st.info("Please select both start and end dates.")
-
+if date_range and len(date_range) == 2:
+    start_date, end_date = date_range
+    data = data[(data['parsed_date'] >= pd.to_datetime(start_date)) & (data['parsed_date'] <= pd.to_datetime(end_date))]
+    keywords_filtered = keywords_filtered[(keywords_filtered['parsed_date'] >= pd.to_datetime(start_date)) & (keywords_filtered['parsed_date'] <= pd.to_datetime(end_date))]
+else:
+    st.info("Please select both start and end dates.")
+	
 # Apply Filters
 if selected_sources == 'All':
     filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score)]
