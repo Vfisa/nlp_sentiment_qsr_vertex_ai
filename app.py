@@ -81,14 +81,14 @@ data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
 keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
 
 data = pd.read_csv(data_path, parse_dates=['parsed_date'])
+data['parsed_date'] = pd.to_datetime(data['parsed_date'], format='mixed')
 keywords = pd.read_csv(keywords_path)
+keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'], format='mixed')
 
 data['sentiment_category'] = data['sentiment'].apply(categorize_sentiment)
-data['parsed_date'] = pd.to_datetime(data['parsed_date'])
 data['date'] = data['parsed_date'].dt.date
 data['is_widget'] = False
 
-keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'])
 keywords['date'] = keywords['parsed_date'].dt.date
 
 values_to_exclude = ['London', 'London Eye']
