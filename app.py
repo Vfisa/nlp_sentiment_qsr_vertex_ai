@@ -81,9 +81,9 @@ data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
 keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
 
 data = pd.read_csv(data_path, parse_dates=['parsed_date'])
-data['parsed_date'] = pd.to_datetime(data['parsed_date'], format='mixed')
+data['parsed_date'] = pd.to_datetime(data['parsed_date'], format='mixed').dt.tz_localize(None)
 keywords = pd.read_csv(keywords_path)
-keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'], format='mixed')
+keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'], format='mixed').dt.tz_localize(None)
 
 data['sentiment_category'] = data['sentiment'].apply(categorize_sentiment)
 data['date'] = data['parsed_date'].dt.date
