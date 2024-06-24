@@ -12,14 +12,24 @@ from wordcloud import WordCloud
 from PIL import Image
 from google.oauth2 import service_account
 from vertexai.generative_models import GenerativeModel
+from keboola_streamlit import KeboolaStreamlit
 
+STORAGE_API_TOKEN = st.secrets['STORAGE_API_TOKEN']
+KEBOOLA_HOSTNAME = st.secrets['KEBOOLA_HOSTNAME']
 PROJECT = 'keboola-ai'
 LOCATION = 'us-central1'
 MODEL_NAME = 'gemini-1.5-pro-preview-0409'
 
 CREDENTIALS = service_account.Credentials.from_service_account_info(
-    jwt.decode(st.secrets['encoded_token'], 'keboola', algorithms=['HS256'])
+    jwt.decode(st.secrets['ENCODED_TOKEN'], 'keboola', algorithms=['HS256'])
 )
+
+keboola = KeboolaStreamlit(KEBOOLA_HOSTNAME, STORAGE_API_TOKEN)
+
+@st.cache_data
+def get_dataframe(table_name):
+    df = keboola.read_table(table_name)
+    return df
 
 def color_for_value(value):
     if value < -0.2:
@@ -45,7 +55,6 @@ def sentiment_color(sentiment):
     else:
         return "color: #EA4335"
 
-# Gemini 
 def generate(content):
     try:
         vertexai.init(project=PROJECT, location=LOCATION, credentials=CREDENTIALS)
@@ -77,12 +86,15 @@ st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
 st.title('London Eye Reviews Sentiment Analysis')
 
-data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
-keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
+#data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
+#keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
+#data = pd.read_csv(data_path, parse_dates=['parsed_date'])
+#keywords = pd.read_csv(keywords_path)
 
-data = pd.read_csv(data_path, parse_dates=['parsed_date'])
+data = get_dataframe('out.c-json-parsing-gemini.reviews_sentiment_final_gemini')
 data['parsed_date'] = pd.to_datetime(data['parsed_date'], format='mixed').dt.tz_localize(None)
-keywords = pd.read_csv(keywords_path)
+
+keywords = get_dataframe('out.c-json-parsing-gemini.reviews_keywords_final_gemini')
 keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'], format='mixed').dt.tz_localize(None)
 
 data['sentiment_category'] = data['sentiment'].apply(categorize_sentiment)

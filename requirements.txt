@@ -1,5 +1,8 @@
+streamlit
 wordcloud
 pyjwt
 vertexai
 google-auth
 google-cloud-aiplatform
+plotly
+keboola-streamlit
