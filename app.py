@@ -156,6 +156,9 @@ def main():
             default_date_range = ()
         date_range = st.date_input("Select a date range:", default_date_range, min_value=min_date, max_value=max_date)
     
+    filtered_data = pd.DataFrame()
+    keywords_filtered = pd.DataFrame()
+    
     if date_range and len(date_range) == 2:
         start_date, end_date = date_range
         filtered_data = filter_data(data, min_score, max_score, selected_sources, start_date, end_date)
@@ -163,8 +166,11 @@ def main():
     else:
         st.info("Please select both start and end dates.")
     
-    display_charts(filtered_data, keywords_filtered)
-
+    if not filtered_data.empty and not keywords_filtered.empty:
+        display_charts(filtered_data, keywords_filtered)
+    else:
+        st.warning("No data available for the selected filters.")
+    
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns([3, 2])
 
