@@ -156,9 +156,6 @@ def main():
             default_date_range = ()
         date_range = st.date_input("Select a date range:", default_date_range, min_value=min_date, max_value=max_date)
     
-    filtered_data = pd.DataFrame()
-    keywords_filtered = pd.DataFrame()
-    
     if date_range and len(date_range) == 2:
         start_date, end_date = date_range
         filtered_data = filter_data(data, min_score, max_score, selected_sources, start_date, end_date)
