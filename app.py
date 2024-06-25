@@ -79,27 +79,16 @@ st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
 st.title('London Eye Reviews Sentiment Analysis')
 
-#data_path = '/data/in/tables/reviews_sentiment_final_gemini.csv'
-#keywords_path = '/data/in/tables/reviews_keywords_final_gemini.csv'
-#data = pd.read_csv(data_path, parse_dates=['parsed_date'])
-#keywords = pd.read_csv(keywords_path)
-
 data = read_data('out.c-json-parsing-gemini.reviews_sentiment_final_gemini')
-#data = pd.read_csv('reviews_sentiment_final_gemini.csv')
 data['parsed_date'] = pd.to_datetime(data['parsed_date'], format='mixed').dt.tz_localize(None)
 
 keywords = read_data('out.c-json-parsing-gemini.reviews_keywords_final_gemini')
-#keywords = pd.read_csv('reviews_keywords_final_gemini.csv')
 keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'], format='mixed').dt.tz_localize(None)
 
-#data['sentiment_category'] = data['sentiment'].apply(categorize_sentiment)
 data['date'] = data['parsed_date'].dt.date
 data['is_widget'] = False
-
 keywords['date'] = keywords['parsed_date'].dt.date
-
-values_to_exclude = ['London', 'London Eye']
-keywords_filtered = keywords[~keywords['keywords'].isin(values_to_exclude)]
+keywords_filtered = keywords[~keywords['keywords'].isin(['London', 'London Eye'])]
 
 st.markdown("<br>__Filters__", unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3, gap='medium')
@@ -109,8 +98,7 @@ with col1:
     min_score, max_score = st.slider(
                 'Select a range for the sentiment score:',
                 min_value=-1.0, max_value=1.0, value=(-1.0, 1.0),
-                key="sentiment_slider"
-            )
+                key="sentiment_slider")
 
 with col2:
     source_choices = ['All'] + data['reviewSource'].unique().tolist()
@@ -126,6 +114,7 @@ with col3:
         default_date_range = ()
 
     date_range = st.date_input("Select a date range:", default_date_range, min_value=min_date, max_value=max_date)
+
 if date_range and len(date_range) == 2:
     start_date, end_date = date_range
     data = data[(data['parsed_date'] >= pd.to_datetime(start_date)) & (data['parsed_date'] <= pd.to_datetime(end_date))]
@@ -140,10 +129,6 @@ if selected_sources == 'All':
 else:
     filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score) & (data['reviewSource'] == selected_sources)]
     keywords_filtered = keywords_filtered[(keywords_filtered['sentiment'] >= min_score) & (keywords_filtered['sentiment'] <= max_score) & (keywords_filtered['reviewSource'] == selected_sources)]
-
-#unique_sentiment_scores = filtered_data['sentiment'].unique()
-#keywords_filtered = keywords_filtered[keywords_filtered['sentiment'].isin(unique_sentiment_scores)]
-
 
 col1, col2, col3 = st.columns(3, gap='medium')
 with col1:
@@ -164,9 +149,7 @@ with col1:
 with col2: 
     keyword_counts = keywords_filtered.groupby('keywords')['counts'].sum().reset_index()
     top_keywords = keyword_counts.sort_values(by='counts', ascending=True).tail(10)
-    #st.write(keywords_filtered)
-    #top_keywords = keywords_filtered.sort_values(by='counts', ascending=True).tail(10)
-	
+
     fig = px.bar(top_keywords, x='counts', y='keywords', orientation='h', title='Top 10 Keywords by Count', color_discrete_sequence=['#4285F4'])
     fig.update_layout(xaxis_title='Count', yaxis_title='Keywords')
 
@@ -192,7 +175,6 @@ with col3:
 st.markdown("<br>", unsafe_allow_html=True)
 col1, col2 = st.columns([3,2])
 
-# Show table
 with col1:
     st.markdown("__Data__")
     sorted_data = filtered_data.sort_values(by='parsed_date', ascending=False)
@@ -221,12 +203,10 @@ with col1:
                            'url'],
                 use_container_width=True, hide_index=True)
 
-#@st.cache_data
 def generate_wordcloud(word_freq, mask_image_path):
     colormap = mcolors.ListedColormap(['#4285F4', '#34A853', '#FBBC05', '#EA4335'])
     mask_image = np.array(Image.open(mask_image_path))
 
-    # Ensure mask_image is of type uint8
     if mask_image.dtype != np.uint8:
         mask_image = mask_image.astype(np.uint8)
 
@@ -235,23 +215,17 @@ def generate_wordcloud(word_freq, mask_image_path):
                           mode='RGBA').generate_from_frequencies(word_freq)
     wordcloud_array = wordcloud.to_array()
 
-    # Ensure the wordcloud_array is of type uint8
     if wordcloud_array.dtype != np.uint8:
         wordcloud_array = wordcloud_array.astype(np.uint8)
     
     return wordcloud_array
     
 summary = keywords_filtered.groupby('keywords')['counts'].sum().reset_index()
-#filtered_summary = summary[summary['counts'] > 10]
-#filtered_summary = keywords_filtered[keywords_filtered['counts'] > 10]
-#word_freq = dict(zip(filtered_summary['keywords'], filtered_summary['counts']))
 word_freq = dict(zip(summary['keywords'], summary['counts']))
-
 
 # Wordcloud
 with col2:
     st.markdown("__Word Eye__")
-    # Generate the word cloud
     if word_freq:    
         wordcloud = generate_wordcloud(word_freq, LONDON_EYE_WC_PATH)
         fig, ax = plt.subplots(figsize=(10, 5), frameon=False)
@@ -261,7 +235,6 @@ with col2:
     else:
         st.info("No keywords found to generate the word cloud.")
         
-# Gemini response
 gemini_html = f'<div style="display: flex; justify-content: center;"><img src="data:image/png;base64,{base64.b64encode(open(KEBOOLA_GEMINI_PATH, "rb").read()).decode()}" style="width: 60px; margin-top: 30px;"></div>'
 st.markdown(f'{gemini_html}', unsafe_allow_html=True)
 
