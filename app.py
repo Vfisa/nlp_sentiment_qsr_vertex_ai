@@ -20,7 +20,6 @@ MODEL_NAME = 'gemini-1.5-pro-preview-0409'
 IMAGE_PATH = os.path.dirname(os.path.abspath(__file__))
 KEBOOLA_LOGO_PATH = IMAGE_PATH + "/static/keboola_logo.png"
 KEBOOLA_GEMINI_PATH = IMAGE_PATH + "/static/keboola_gemini.png"
-LONDON_EYE_WC_PATH = IMAGE_PATH + "/static/london_eye_wc.png"
 
 STORAGE_API_TOKEN = st.secrets['STORAGE_API_TOKEN']
 KEBOOLA_HOSTNAME = st.secrets['KEBOOLA_HOSTNAME']
@@ -38,9 +37,9 @@ def read_data(table_name):
     return df
 
 def color_for_value(value):
-    if value < -0.2:
+    if value < 3:
         return '#EA4335'
-    elif -0.2 <= value <= 0.2:
+    elif 3 <= value <= 4.2:
         return '#FBBC05' 
     else:
         return '#34A853' 
@@ -48,7 +47,7 @@ def color_for_value(value):
 def sentiment_color(sentiment):
     if sentiment == "Positive":
         return "color: #34A853"
-    if sentiment == "Neutral":
+    if sentiment == "Mixed":
         return "color: #FBBC05"
     else:
         return "color: #EA4335"
@@ -77,37 +76,31 @@ def generate(content):
 logo_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(KEBOOLA_LOGO_PATH, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
 st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
-st.title('London Eye Reviews Sentiment Analysis')
+st.title('Location Experience')
 
-data = read_data('out.c-json-parsing-gemini.reviews_sentiment_final_gemini')
-data['parsed_date'] = pd.to_datetime(data['parsed_date'], format='mixed').dt.tz_localize(None)
+data = read_data('data/in/tables/out.c_review_model.location_review.csv')
+data['review_date'] = pd.to_datetime(data['review_date'], format='mixed').dt.tz_localize(None)
 
-keywords = read_data('out.c-json-parsing-gemini.reviews_keywords_final_gemini')
-keywords['parsed_date'] = pd.to_datetime(keywords['parsed_date'], format='mixed').dt.tz_localize(None)
-
-data['date'] = data['parsed_date'].dt.date
-data['is_widget'] = False
-keywords['date'] = keywords['parsed_date'].dt.date
-keywords_filtered = keywords[~keywords['keywords'].isin(['London', 'London Eye'])]
+keywords = read_data('data/in/tables/in.c-qsr_model.review_entity.csv')
 
 st.markdown("<br>__Filters__", unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3, gap='medium')
-st.markdown("<br>", unsafe_allow_html=True)    
+st.markdown("<br>", unsafe_allow_html=True)   
 
 with col1:
     min_score, max_score = st.slider(
                 'Select a range for the sentiment score:',
-                min_value=-1.0, max_value=1.0, value=(-1.0, 1.0),
+                min_value=0.0, max_value=5.0, value=(0.0, 5.0),
                 key="sentiment_slider")
 
 with col2:
-    source_choices = ['All'] + data['reviewSource'].unique().tolist()
-    selected_sources = st.selectbox('Filter by review source:', source_choices)
+    source_choices = ['All'] + data['place_name'].unique().tolist()
+    selected_sources = st.selectbox('Filter by location:', source_choices)
 
 with col3:
     if not data.empty:
-        min_date = data['parsed_date'].min()
-        max_date = data['parsed_date'].max()
+        min_date = data['review_date'].min()
+        max_date = data['review_date'].max()
         default_date_range = (min_date, max_date)
     else:
         min_date, max_date = None, None
@@ -117,8 +110,8 @@ with col3:
 
 if date_range and len(date_range) == 2:
     start_date, end_date = date_range
-    data = data[(data['parsed_date'] >= pd.to_datetime(start_date)) & (data['parsed_date'] <= pd.to_datetime(end_date))]
-    keywords_filtered = keywords_filtered[(keywords_filtered['parsed_date'] >= pd.to_datetime(start_date)) & (keywords_filtered['parsed_date'] <= pd.to_datetime(end_date))]
+    data = data[(data['review_date'] >= pd.to_datetime(start_date)) & (data['review_date'] <= pd.to_datetime(end_date))]
+    keywords_filtered = keywords_filtered[(keywords_filtered['review_date'] >= pd.to_datetime(start_date)) & (keywords_filtered['review_date'] <= pd.to_datetime(end_date))]
 else:
     st.info("Please select both start and end dates.")
 	
@@ -127,8 +120,8 @@ if selected_sources == 'All':
     filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score)]
     keywords_filtered = keywords_filtered[(keywords_filtered['sentiment'] >= min_score) & (keywords_filtered['sentiment'] <= max_score)]
 else:
-    filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score) & (data['reviewSource'] == selected_sources)]
-    keywords_filtered = keywords_filtered[(keywords_filtered['sentiment'] >= min_score) & (keywords_filtered['sentiment'] <= max_score) & (keywords_filtered['reviewSource'] == selected_sources)]
+    filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score) & (data['place_name'] == selected_sources)]
+    keywords_filtered = keywords_filtered[(keywords_filtered['sentiment'] >= min_score) & (keywords_filtered['sentiment'] <= max_score) & (keywords_filtered['place_name'] == selected_sources)]
 
 col1, col2, col3 = st.columns(3, gap='medium')
 with col1:
@@ -227,7 +220,7 @@ word_freq = dict(zip(summary['keywords'], summary['counts']))
 with col2:
     st.markdown("__Word Eye__")
     if word_freq:    
-        wordcloud = generate_wordcloud(word_freq, LONDON_EYE_WC_PATH)
+        wordcloud = generate_wordcloud(word_freq)
         fig, ax = plt.subplots(figsize=(10, 5), frameon=False)
         ax.imshow(wordcloud, interpolation='bilinear')
         ax.axis('off')    
