@@ -4,7 +4,7 @@ pyjwt
 vertexai
 google-cloud-storage==2.16.0
 google-auth==2.29.0
-urllib3==2.0.0
+urllib3
 google-cloud-aiplatform==1.49.0
 plotly
 keboola-streamlit

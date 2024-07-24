@@ -21,19 +21,15 @@ IMAGE_PATH = os.path.dirname(os.path.abspath(__file__))
 KEBOOLA_LOGO_PATH = IMAGE_PATH + "/static/keboola_logo.png"
 KEBOOLA_GEMINI_PATH = IMAGE_PATH + "/static/keboola_gemini.png"
 
-STORAGE_API_TOKEN = st.secrets['STORAGE_API_TOKEN']
-KEBOOLA_HOSTNAME = st.secrets['KEBOOLA_HOSTNAME']
 CREDENTIALS = service_account.Credentials.from_service_account_info(
     jwt.decode(st.secrets['ENCODED_TOKEN'], 'keboola', algorithms=['HS256'])
 )
-
-keboola = KeboolaStreamlit(KEBOOLA_HOSTNAME, STORAGE_API_TOKEN)
 
 st.set_page_config(layout='wide')
 
 @st.cache_data
 def read_data(table_name):
-    df = keboola.read_table(table_name)
+    df = pd.read_csv(table_name)
     return df
 
 def color_for_value(value):
@@ -72,195 +68,107 @@ def generate(content):
         st.error(f"An error occurred during content generation. Please try again.")
         return ''
 
-
 logo_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(KEBOOLA_LOGO_PATH, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
 st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
-st.title('Location Experience')
+location = read_data('data/in/tables/out.c_review_model.location.csv')
+location_review = read_data('data/in/tables/in.c-qsr_model.location_review.csv')
+review_sentence = read_data('data/in/tables/in.c-qsr_model.review_sentence.csv')
+review_entity = read_data('data/in/tables/in.c-qsr_model.review_entity.csv')
 
-data = read_data('data/in/tables/out.c_review_model.location_review.csv')
-data['review_date'] = pd.to_datetime(data['review_date'], format='mixed').dt.tz_localize(None)
+# Clean up datetimes
+location_review['review_date'] = pd.to_datetime(location_review['review_date'], format='mixed').dt.tz_localize(None)
+# Generate unique combinations of place_name and street
+location['place_street'] = location['place_name'] + " - " + location['street']
+location_options = location['place_street'].unique().tolist()
+location_options.insert(0, "All")
+# Generate unique list of brands
+brand_options = location['brand'].dropna().unique().tolist()
+brand_options.insert(0, "All")
 
-keywords = read_data('data/in/tables/in.c-qsr_model.review_entity.csv')
+# Set the title of the app
+st.title("Location Experience")
 
-st.markdown("<br>__Filters__", unsafe_allow_html=True)
-col1, col2, col3 = st.columns(3, gap='medium')
-st.markdown("<br>", unsafe_allow_html=True)   
-
-with col1:
-    min_score, max_score = st.slider(
-                'Select a range for the sentiment score:',
-                min_value=0.0, max_value=5.0, value=(0.0, 5.0),
-                key="sentiment_slider")
-
-with col2:
-    source_choices = ['All'] + data['place_name'].unique().tolist()
-    selected_sources = st.selectbox('Filter by location:', source_choices)
-
-with col3:
-    if not data.empty:
-        min_date = data['review_date'].min()
-        max_date = data['review_date'].max()
-        default_date_range = (min_date, max_date)
-    else:
-        min_date, max_date = None, None
-        default_date_range = ()
-
-    date_range = st.date_input("Select a date range:", default_date_range, min_value=min_date, max_value=max_date)
-
-if date_range and len(date_range) == 2:
-    start_date, end_date = date_range
-    data = data[(data['review_date'] >= pd.to_datetime(start_date)) & (data['review_date'] <= pd.to_datetime(end_date))]
-    keywords_filtered = keywords_filtered[(keywords_filtered['review_date'] >= pd.to_datetime(start_date)) & (keywords_filtered['review_date'] <= pd.to_datetime(end_date))]
-else:
-    st.info("Please select both start and end dates.")
-	
-# Apply Filters
-if selected_sources == 'All':
-    filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score)]
-    keywords_filtered = keywords_filtered[(keywords_filtered['sentiment'] >= min_score) & (keywords_filtered['sentiment'] <= max_score)]
-else:
-    filtered_data = data[(data['sentiment'] >= min_score) & (data['sentiment'] <= max_score) & (data['place_name'] == selected_sources)]
-    keywords_filtered = keywords_filtered[(keywords_filtered['sentiment'] >= min_score) & (keywords_filtered['sentiment'] <= max_score) & (keywords_filtered['place_name'] == selected_sources)]
-
-col1, col2, col3 = st.columns(3, gap='medium')
-with col1:
-    filtered_data['color'] = filtered_data['sentiment'].apply(color_for_value)
-
-    fig = px.histogram(
-        filtered_data,
-        x='sentiment',
-        nbins=21,  
-        title='Sentiment Score Distribution',
-        color='color',
-        color_discrete_map='identity'  
-    )
-
-    fig.update_layout(bargap=0.1, xaxis_title='Sentiment Score', yaxis_title='Count') 
-    st.plotly_chart(fig, use_container_width=True)
-
-with col2: 
-    keyword_counts = keywords_filtered.groupby('keywords')['counts'].sum().reset_index()
-    top_keywords = keyword_counts.sort_values(by='counts', ascending=True).tail(10)
-
-    fig = px.bar(top_keywords, x='counts', y='keywords', orientation='h', title='Top 10 Keywords by Count', color_discrete_sequence=['#4285F4'])
-    fig.update_layout(xaxis_title='Count', yaxis_title='Keywords')
-
-    st.plotly_chart(fig, use_container_width=True)
-
-with col3:
-    review_source_counts  = filtered_data['reviewSource'].value_counts().reset_index()
-    review_source_counts .columns = ['reviewSource', 'count']
-    top_10_industries = review_source_counts .head(10)
-    count = top_10_industries.shape[0]
-    colors = ['#D4D4D4', '#939393']
+# Top row for filters
+with st.sidebar:
+    st.header("Filters")
     
-    fig = px.pie(
-        top_10_industries, 
-        names='reviewSource', 
-        values='count', 
-        title=f'Distribution of Reviews',
-        color_discrete_sequence=colors
-    )
+    # Review Date filter
+    st.subheader("Review Date")
+    review_date = st.date_input("Select Date Range", [])
     
-    st.plotly_chart(fig, use_container_width=True)
+    # Sentiment Score filter
+    st.subheader("Sentiment Score")
+    sentiment_score = st.slider("Select Sentiment Score Range", 0.0, 5.0, (0.0, 5.0))
+    
+    # Brand filter
+    st.subheader("Brand")
+    brand_selection = st.multiselect("Select Brands", options=brand_options, default=["All"])
+    if "All" in brand_selection:
+        brand_selection = brand_options[1:]  # Exclude "All" from the actual selection
+    
+    # Location filter
+    st.subheader("Location")
+    location_selection = st.multiselect("Select Locations", options=location_options, default=["All"])
+    if "All" in location_selection:
+        location_selection = location_selection[1:]  # Exclude "All" from the actual selection
 
+
+# Main layout
+st.divider()
+st.header("Overview")
+col1, col2, col3 = st.columns(3, gap='medium')
 st.markdown("<br>", unsafe_allow_html=True)
-col1, col2 = st.columns([3,2])
 
 with col1:
-    st.markdown("__Data__")
-    sorted_data = filtered_data.sort_values(by='parsed_date', ascending=False)
-    selected_data = st.data_editor(sorted_data[['is_widget',
-                                'sentiment_category',
-                                'text_in_english',                            
-                                'stars',
-                                'reviewSource', 
-                                'date',
-                                'url']].style.map(
-            sentiment_color, subset=["sentiment_category"]
-        ), 
-                column_config={'is_widget': 'Select',
-                                'sentiment_category': 'Sentiment Category',
-                                'text_in_english': 'Text',
-                                'stars': 'Rating',
-                                'reviewSource': 'Review Source',
-                                'date': 'Date',
-                                'url': st.column_config.LinkColumn('URL')
-                                }, height=500,
-                 disabled=['sentiment_category',
-                           'text_in_english',                            
-                           'stars',
-                           'reviewSource', 
-                           'date',
-                           'url'],
-                use_container_width=True, hide_index=True)
+    st.subheader("Sentiment")
+    st.text("Bar chart from 0-5 (count)")
 
-def generate_wordcloud(word_freq, mask_image_path):
-    colormap = mcolors.ListedColormap(['#4285F4', '#34A853', '#FBBC05', '#EA4335'])
-    mask_image = np.array(Image.open(mask_image_path))
-
-    if mask_image.dtype != np.uint8:
-        mask_image = mask_image.astype(np.uint8)
-
-    wordcloud = WordCloud(width=500, height=500, background_color=None, 
-                          colormap=colormap, mask=mask_image,
-                          mode='RGBA').generate_from_frequencies(word_freq)
-    wordcloud_array = wordcloud.to_array()
-
-    if wordcloud_array.dtype != np.uint8:
-        wordcloud_array = wordcloud_array.astype(np.uint8)
-    
-    return wordcloud_array
-    
-summary = keywords_filtered.groupby('keywords')['counts'].sum().reset_index()
-word_freq = dict(zip(summary['keywords'], summary['counts']))
-
-# Wordcloud
 with col2:
-    st.markdown("__Word Eye__")
-    if word_freq:    
-        wordcloud = generate_wordcloud(word_freq)
-        fig, ax = plt.subplots(figsize=(10, 5), frameon=False)
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')    
-        st.pyplot(fig, use_container_width=True)
-    else:
-        st.info("No keywords found to generate the word cloud.")
-        
-gemini_html = f'<div style="display: flex; justify-content: center;"><img src="data:image/png;base64,{base64.b64encode(open(KEBOOLA_GEMINI_PATH, "rb").read()).decode()}" style="width: 60px; margin-top: 30px;"></div>'
-st.markdown(f'{gemini_html}', unsafe_allow_html=True)
+    st.subheader("Location Map")
+    st.text("Map visualization with location average sentiment")
 
-st.markdown("""
-<div style="text-align: left;">
-    <h4>Reply to a review with Gemini</h4>
-</div>
-""", unsafe_allow_html=True)
+with col3:
+    st.subheader("Review Calendar")
+    st.text("Calendar heatmap showing the number of reviews")
 
-if 'generated_responses' not in st.session_state:
-    st.session_state['generated_responses'] = {}
+st.divider()
+st.header("Entities")
+col4, col5, col6, col7 = st.columns(4, gap='medium')
+st.markdown("<br>", unsafe_allow_html=True)
 
-if selected_data['is_widget'].sum() == 1:
-    selected_review = selected_data[selected_data['is_widget'] == True]['text_in_english'].iloc[0]
-    review_text = selected_review if selected_review else st.warning('No review found.')
-    st.write(f'_Review:_\n\n{review_text}')
+with col4:
+    st.subheader("Classification")
+    st.text("Filters: sentence_category, sentence_category_group, sentence_topic")
 
-    if st.button('Generate response'):
-        if review_text in st.session_state['generated_responses']:
-            response = st.session_state['generated_responses'][review_text]
-        else:
-            with st.spinner('🤖 Generating response, please wait...'):
-                prompt = f"""
-                You are given a review on London Eye, UK. Pretend you're a social media manager for the London Eye and write a short (3-5 sentence) response to this review. Only return the response.
-                
-                Review:
-                {review_text}
-                """
-                response = generate(prompt)
-                if response:
-                    st.session_state['generated_responses'][review_text] = response
-                else:
-                    st.error("Something went wrong, please try again.")
-        st.write(f"_Response:_\n\n{response}")
-else:
-    st.info('Select the review you want to respond to in the table above.')
+with col5:
+    st.subheader("Positive")
+    st.text("Top 10 positive entities based on frequency")
+
+with col6:
+    st.subheader("Negative")
+    st.text("Top 10 negative entities based on frequency")
+
+with col7:
+    st.subheader("Entities")
+    st.text("Word cloud from entities")
+
+st.divider()
+st.header("Details")
+st.text("Table with data from review_sentence and additional columns from location_review")
+
+# Placeholder for the main content
+st.write("""
+    - Review Date filter (date range filter from-to)
+    - Sentiment Score filter (value range filter from 0 to 5)
+    - Brand filter (multi-selector)
+    - Location filter (filtering location table based on "place_name - street", selection shall allow multiple)
+    - Sentiment Score distribution (bar chart from 0-5 (count))
+    - Map with location average sentiment (calculated from review)
+    - Calendar heatmap with number of reviews shown on a calendar
+    - Filters: (sentence_category, sentence_category_group, sentence_topic)
+    - Top 10 positive entities (from review_entity) based on the frequency - where sentence_sentiment is Positive
+    - Top 10 negative entities (from review_entity) based on the frequency - where sentence_sentiment is Negative
+    - Word cloud from entities
+    - Table with data from review_sentence and additional columns from location_review
+""")
