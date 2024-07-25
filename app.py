@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import plotly.express as px
+import plotly.graph_objects as go
 import os 
 import jwt
 import vertexai
@@ -78,16 +79,15 @@ review_entity = read_data('data/in/tables/in.c-qsr_model.review_entity.csv')
 
 # Clean up datetimes
 location_review['review_date'] = pd.to_datetime(location_review['review_date'], format='mixed').dt.tz_localize(None)
-# Generate unique combinations of place_name and street
-location['place_street'] = location['place_name'] + " - " + location['street']
-location_options = location['place_street'].unique().tolist()
-location_options.insert(0, "All")
+
 # Generate unique list of brands
 brand_options = location['brand'].dropna().unique().tolist()
 brand_options.insert(0, "All")
 
 # Set the title of the app
 st.title("Location Experience")
+
+# SIDEBAR
 
 # Top row for filters
 with st.sidebar:
@@ -105,32 +105,85 @@ with st.sidebar:
     st.subheader("Brand")
     brand_selection = st.multiselect("Select Brands", options=brand_options, default=["All"])
     if "All" in brand_selection:
-        brand_selection = brand_options[1:]  # Exclude "All" from the actual selection
+        brand_selection = brand_selection[1:]
+    
+    # Filter locations based on selected brand
+    if "All" in brand_selection:
+        filtered_locations = location
+    else:
+        filtered_locations = location[location['brand'].isin(brand_selection)]
+    
+    # Generate unique combinations of place_name and street
+    filtered_locations['place_street'] = filtered_locations['place_name'] + " - " + filtered_locations['street']
+    location_options = filtered_locations['place_street'].unique().tolist()
+    location_options.insert(0, "All")
     
     # Location filter
     st.subheader("Location")
     location_selection = st.multiselect("Select Locations", options=location_options, default=["All"])
     if "All" in location_selection:
-        location_selection = location_selection[1:]  # Exclude "All" from the actual selection
+        location_selection = location_options[1:]  # Exclude "All" from the actual selection
 
+# DATA FILTERING
+
+# Filter location_review dataset based on the selected filters
+filtered_reviews = location_review.copy()
+
+# Apply Review Date filter
+if review_date:
+    start_date, end_date = review_date
+    filtered_reviews = filtered_reviews[(filtered_reviews['review_date'] >= pd.to_datetime(start_date)) & (filtered_reviews['review_date'] <= pd.to_datetime(end_date))]
+
+# Apply Sentiment Score filter
+filtered_reviews = filtered_reviews[(filtered_reviews['rating'] >= sentiment_score[0]) & (filtered_reviews['rating'] <= sentiment_score[1])]
+
+# Apply Brand and Location filters
+if brand_selection and location_selection:
+    if "All" not in brand_selection:
+        place_ids = filtered_locations[filtered_locations['place_street'].isin(location_selection)]['place_id'].unique()
+        filtered_reviews = filtered_reviews[filtered_reviews['place_id'].isin(place_ids)]
 
 # Main layout
 st.divider()
 st.header("Overview")
-col1, col2, col3 = st.columns(3, gap='medium')
+col1, col2 = st.columns([1, 2], gap='medium')
 st.markdown("<br>", unsafe_allow_html=True)
 
 with col1:
     st.subheader("Sentiment")
-    st.text("Bar chart from 0-5 (count)")
+    sentiment_distribution = filtered_reviews['rating'].value_counts().sort_index()
+    fig = px.bar(sentiment_distribution, x=sentiment_distribution.index, y=sentiment_distribution.values, labels={'x':'Rating', 'y':'Count'})
+    st.plotly_chart(fig)
 
 with col2:
     st.subheader("Location Map")
-    st.text("Map visualization with location average sentiment")
+    # Merge location and filtered reviews to get average sentiment per location
+    merged_data = filtered_reviews.merge(location, on='place_id')
+    avg_sentiment = merged_data.groupby(['formatted_address', 'latitude', 'longitude'])['rating'].mean().reset_index()
+    avg_sentiment['text'] = avg_sentiment['formatted_address'] + ': ' + avg_sentiment['rating'].round(2).astype(str)
+    
+    fig = px.scatter_mapbox(
+        avg_sentiment, 
+        lat='latitude', 
+        lon='longitude', 
+        text='text', 
+        size='rating', 
+        color='rating', 
+        color_continuous_scale=px.colors.cyclical.IceFire, 
+        size_max=15, 
+        zoom=10
+    )
 
-with col3:
-    st.subheader("Review Calendar")
-    st.text("Calendar heatmap showing the number of reviews")
+    # Center and zoom map on all points
+    # ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain", "stamen-toner", "stamen-watercolor"]
+    lat_center = avg_sentiment['latitude'].mean()
+    lon_center = avg_sentiment['longitude'].mean()
+    fig.update_layout(
+        mapbox_style="carto-positron",
+        mapbox_center={"lat": lat_center, "lon": lon_center},
+        mapbox_zoom=2
+    )
+    st.plotly_chart(fig)
 
 st.divider()
 st.header("Entities")
