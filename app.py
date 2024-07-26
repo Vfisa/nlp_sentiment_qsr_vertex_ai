@@ -71,10 +71,10 @@ def generate(content):
 logo_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(KEBOOLA_LOGO_PATH, "rb").read()).decode()}" style="width: 200px; margin-bottom: 10px;"></div>'
 st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
-location = read_data('data/in/tables/out.c-review_model.location.csv')
-location_review = read_data('data/in/tables/out.c-review_model.location_review.csv')
-review_sentence = read_data('data/in/tables/out.c-review_model.review_sentence.csv')
-review_entity = read_data('data/in/tables/out.c-review_model.review_entity.csv')
+location = read_data('/data/in/tables/location.csv')
+location_review = read_data('/data/in/tables/location_review.csv')
+review_sentence = read_data('/data/in/tables/review_sentence.csv')
+review_entity = read_data('/data/in/tables/review_entity.csv')
 
 # Clean up datetimes
 location_review['review_date'] = pd.to_datetime(location_review['review_date'], format='mixed').dt.tz_localize(None)
