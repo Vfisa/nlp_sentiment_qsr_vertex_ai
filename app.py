@@ -333,4 +333,40 @@ with col9:
     # Add a large text field above the table
     customer_success_text = st.text_area("Customer Success Notes", height=200)
 
+""
+st.subheader("Response Generation")
 
+if 'generated_responses' not in st.session_state:
+    st.session_state['generated_responses'] = {}
+
+selected_sum = selected_data['select'].sum()
+
+if selected_sum == 1:
+    selected_review = selected_data.loc[selected_data['select'] == True, 'review_text'].iloc[0]
+    review_text = selected_review if selected_review else st.info('No review found.')  
+    st.write(f'**Selected Review**\n\n{review_text}')
+
+    if st.button('Generate Response'):
+        if review_text in st.session_state['generated_responses']:
+            response = st.session_state['generated_responses'][review_text]
+        else:
+            with st.spinner(':robot_face: Generating response, please wait...'):
+                prompt = f"""
+                You are given a restaurant review. Pretend you're a social media manager of the restaurant and write a short (3-5 sentence) response to this review. Only return the response.
+                
+                Review:
+                {review_text}
+                """
+                response = generate(prompt)
+                if response:
+                    st.session_state['generated_responses'][review_text] = response
+                else:
+                    st.error("Something went wrong, please try again.")
+    
+    if review_text in st.session_state['generated_responses']:
+        st.text_area("Response Draft", st.session_state['generated_responses'][review_text], height=150)
+
+elif selected_sum > 1:
+    st.info('Select only one review to generate a response.')
+else:
+    st.info('Select the review you want to respond to in the table above.')
