@@ -214,13 +214,54 @@ with col4:
         
     sentence_topic = st.multiselect("Select Sentence Topics", options=filtered_review_sentence['sentence_topic'].dropna().unique().tolist())
 
-# Filter review_entity based on selected categories, category groups, and topics
+# Apply filters to filtered_entities based on selected categories, category groups, and topics
 if sentence_category:
     filtered_entities = filtered_entities[filtered_entities['sentence_category'].isin(sentence_category)]
 if sentence_category_group:
     filtered_entities = filtered_entities[filtered_entities['sentence_category_group'].isin(sentence_category_group)]
 if sentence_topic:
     filtered_entities = filtered_entities[filtered_entities['sentence_topic'].isin(sentence_topic)]
+
+# Filter detailed_data based on the same filters
+detailed_data = review_sentence.merge(location_review, on='review_id', suffixes=('_sentence', '_review'))
+if sentence_category:
+    detailed_data = detailed_data[detailed_data['sentence_category'].isin(sentence_category)]
+if sentence_category_group:
+    detailed_data = detailed_data[detailed_data['sentence_category_group'].isin(sentence_category_group)]
+if sentence_topic:
+    detailed_data = detailed_data[detailed_data['sentence_topic'].isin(sentence_topic)]
+
+
+
+# Add a 'select' column for the selector widget
+detailed_data['select'] = ""
+
+# Arrange columns in the specified order
+columns_order = [
+    'select', 'sentence_sentiment', 'sentence_text', 'sentence_category', 
+    'sentence_category_group', 'sentence_topic', 'entities', 'review_id', 
+    'place_id', 'place_name', 'author', 'rating', 'review_date', 'sentiment'
+]
+detailed_data = detailed_data[columns_order]
+
+# Rename columns
+detailed_data.rename(columns={
+    'select': 'Select',
+    'sentence_sentiment': 'Sentiment',
+    'sentence_text': 'Sentence',
+    'sentence_category': 'Category',
+    'sentence_category_group': 'Category Group',
+    'sentence_topic': 'Topic',
+    'entities': 'Entities',
+    'place_name': 'Location',
+    'author': 'Author',
+    'rating': 'Rating',
+    'review_date': 'Date',
+    'sentiment': 'Overall Sentiment'
+}, inplace=True)
+
+# Hide 'review_id' and 'place_id' columns from display
+display_columns = ['Select', 'Sentiment', 'Sentence', 'Category', 'Category Group', 'Topic', 'Entities', 'Location', 'Author', 'Rating', 'Date', 'Overall Sentiment','review_id']
 
 with col5:
     st.subheader("Positive Entities")
@@ -264,43 +305,7 @@ with col7:
 st.divider()
 st.header("Details")
 
-# Merge review_sentence with location_review for detailed view
-detailed_data = review_sentence.merge(location_review, on='review_id', suffixes=('_sentence', '_review'))
-
-# Add a 'select' column for the selector widget
-detailed_data['select'] = ""
-
-# Arrange columns in the specified order
-columns_order = [
-    'select', 'sentence_sentiment', 'sentence_text', 'sentence_category', 
-    'sentence_category_group', 'sentence_topic', 'entities', 'review_id', 
-    'place_id', 'place_name', 'author', 'rating', 'review_date', 'sentiment'
-]
-detailed_data = detailed_data[columns_order]
-
-# Rename columns
-detailed_data.rename(columns={
-    'select': 'Select',
-    'sentence_sentiment': 'Sentiment',
-    'sentence_text': 'Sentence',
-    'sentence_category': 'Category',
-    'sentence_category_group': 'Category Group',
-    'sentence_topic': 'Topic',
-    'entities': 'Entities',
-    'place_name': 'Location',
-    'author': 'Author',
-    'rating': 'Rating',
-    'review_date': 'Date',
-    'sentiment': 'Overall Sentiment'
-}, inplace=True)
-
-# Hide 'review_id' and 'place_id' columns from display
-display_columns = ['Select', 'Sentiment', 'Sentence', 'Location', 'Category', 'Category Group', 'Topic', 'Entities', 'Author', 'Rating', 'Date', 'Overall Sentiment']
-
-if not detailed_data.empty:
-    st.data_editor(detailed_data[display_columns], disabled=False, hide_index=True, use_container_width=True)
-else:
-    st.write("No data available for the selected filters.")
+# \/\/\/ ANDY
 
 # Placeholder for the main content
 st.write("""
@@ -317,3 +322,34 @@ st.write("""
     - Word cloud from entities
     - Table with data from review_sentence and additional columns from location_review
 """)
+
+if not detailed_data.empty:
+    selected_data = st.data_editor(detailed_data[display_columns].style.map(
+            sentiment_color, subset=["Sentiment"]
+        ),
+                column_config={'Select': 'Select',
+                                'Sentiment': 'Sentiment',
+                                'Sentence': 'Sentence',
+                                'Category': 'Category',
+                                'Category Group': 'Category Group',
+                                'Topic': 'Topic',
+                                'Entities': 'Entities',
+                                'Location': 'Location',
+                                'Author': 'Author',
+                                'Rating': 'Rating',
+                                'Date': 'Date',
+                                'Overall Sentiment': 'Overall Sentiment',
+                                'review_id': 'Review'}, height=500,
+                 disabled=['sentiment_category',
+                           'text_in_english',                            
+                           'stars',
+                           'reviewSource', 
+                           'date',
+                           'url'],
+                use_container_width=True, hide_index=True)
+    # ^^^ ANDY
+    #st.data_editor(detailed_data[display_columns], disabled=False, hide_index=True, use_container_width=True)
+else:
+    st.write("No data available for the selected filters.")
+
+
