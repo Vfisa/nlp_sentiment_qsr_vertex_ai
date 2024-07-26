@@ -318,19 +318,47 @@ if not filtered_reviews.empty:
 else:
     st.write("No data available for the selected filters.")
 
-col8, col9,  = st.columns(2, gap='medium')
+col8, col9,  = st.columns([2, 1], gap='medium')
 
 with col8:
-    # Display the review_text of selected reviews in the text area below the table
-    if not selected_data.empty:
-        selected_reviews = selected_data[selected_data['select'] == True]['review_text']
-        selected_text = "\n\n".join(selected_reviews.tolist())
-        st.text_area("Selected Review Texts", selected_text, height=200)
+    if 'generated_responses' not in st.session_state:
+        st.session_state['generated_responses'] = {}
+
+    selected_sum = selected_data['select'].sum()
+
+    if selected_sum == 1:
+        selected_review = selected_data.loc[selected_data['select'] == True, 'review_text'].iloc[0]
+        review_text = selected_review if selected_review else st.info('No review found.')  
+        st.write(f'**Selected Review**\n\n{review_text}')
+
+        if st.button('Generate Response'):
+            if review_text in st.session_state['generated_responses']:
+                response = st.session_state['generated_responses'][review_text]
+            else:
+                with st.spinner(':robot_face: Generating response, please wait...'):
+                    prompt = f"""
+                    You are given a restaurant review. Pretend you're a social media manager of the restaurant and write a short (3-5 sentence) response to this review. Only return the response.
+                
+                    Review:
+                    {review_text}
+                    """
+                    response = generate(prompt)
+                    if response:
+                        st.session_state['generated_responses'][review_text] = response
+                    else:
+                        st.error("Something went wrong, please try again.")
+    
+        if review_text in st.session_state['generated_responses']:
+            st.text_area("Response Draft", st.session_state['generated_responses'][review_text], height=150)
+
+    elif selected_sum > 1:
+        st.info('Select only one review to generate a response.')
     else:
-        st.write("No reviews selected.")
+        st.info('Select the review you want to respond to in the table above.')
 
 with col9:
     # Add a large text field above the table
-    customer_success_text = st.text_area("Customer Success Notes", height=200)
+    customer_success_text = st.text_area("Customer Success Notes", height=400)
 
+""
 
