@@ -275,7 +275,6 @@ with col7:
     else:
         st.write("No data available for the selected filters.")
 
-st.divider()
 st.header("Review Details")
 
 display_columns = ['sentence_sentiment', 'sentence_text', 'sentence_category', 'sentence_category_group', 'sentence_topic', 'entities', 'place_name', 'author', 'rating', 'review_date', 'sentiment']
