@@ -303,4 +303,26 @@ st.header("Customer Success")
 
 st.text("here will be a review level table with an option to select particular review.")
 
+#filtered_reviews['color'] = filtered_reviews['sentiment'].apply(color_for_value)
 
+selected_data = st.data_editor(filtered_reviews[['sentiment',
+                                'review_text',                            
+                                'rating',
+                                'place_name', 
+                                'review_date',
+                                'author']].style.map(
+            sentiment_color, subset=["sentiment"]
+        ), 
+                column_config={'sentiment': 'Sentiment',
+                                'review_text': 'Text',
+                                'rating': 'Rating',
+                                'place_name': 'Location',
+                                'review_date': 'Date',
+                                'author': 'Author'},
+                 disabled=['sentiment',
+                           'review_text',                            
+                           'rating',
+                           'place_name', 
+                           'review_date',
+                           'author'],
+                use_container_width=True, hide_index=True)
