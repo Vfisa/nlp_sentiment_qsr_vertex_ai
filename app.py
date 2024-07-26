@@ -236,33 +236,6 @@ if sentence_topic:
 # Add a 'select' column for the selector widget
 detailed_data['select'] = ""
 
-# Arrange columns in the specified order
-columns_order = [
-    'select', 'sentence_sentiment', 'sentence_text', 'sentence_category', 
-    'sentence_category_group', 'sentence_topic', 'entities', 'review_id', 
-    'place_id', 'place_name', 'author', 'rating', 'review_date', 'sentiment'
-]
-detailed_data = detailed_data[columns_order]
-
-# Rename columns
-detailed_data.rename(columns={
-    'select': 'Select',
-    'sentence_sentiment': 'Sentiment',
-    'sentence_text': 'Sentence',
-    'sentence_category': 'Category',
-    'sentence_category_group': 'Category Group',
-    'sentence_topic': 'Topic',
-    'entities': 'Entities',
-    'place_name': 'Location',
-    'author': 'Author',
-    'rating': 'Rating',
-    'review_date': 'Date',
-    'sentiment': 'Overall Sentiment'
-}, inplace=True)
-
-# Hide 'review_id' and 'place_id' columns from display
-display_columns = ['Select', 'Sentiment', 'Sentence', 'Category', 'Category Group', 'Topic', 'Entities', 'Location', 'Author', 'Rating', 'Date', 'Overall Sentiment','review_id']
-
 with col5:
     st.subheader("Positive Entities")
     if not filtered_entities.empty:
@@ -303,51 +276,28 @@ with col7:
         st.write("No data available for the selected filters.")
 
 st.divider()
-st.header("Details")
-
-# \/\/\/ ANDY
-
-# Placeholder for the main content
-st.write("""
-    - Review Date filter (date range filter from-to)
-    - Sentiment Score filter (value range filter from 0 to 5)
-    - Brand filter (multi-selector)
-    - Location filter (filtering location table based on "place_name - street", selection shall allow multiple)
-    - Sentiment Score distribution (bar chart from 0-5 (count))
-    - Map with location average sentiment (calculated from review)
-    - Calendar heatmap with number of reviews shown on a calendar
-    - Filters: (sentence_category, sentence_category_group, sentence_topic)
-    - Top 10 positive entities (from review_entity) based on the frequency - where sentence_sentiment is Positive
-    - Top 10 negative entities (from review_entity) based on the frequency - where sentence_sentiment is Negative
-    - Word cloud from entities
-    - Table with data from review_sentence and additional columns from location_review
-""")
+st.header("Review Feedback")
 
 if not detailed_data.empty:
-    selected_data = st.data_editor(detailed_data[display_columns].style.map(
-            sentiment_color, subset=["Sentiment"]
+    selected_data = st.data_editor(detailed_data.style.map(
+            sentiment_color, subset=["sentence_sentiment"]
         ),
-                column_config={'Select': 'Select',
-                                'Sentiment': 'Sentiment',
-                                'Sentence': 'Sentence',
-                                'Category': 'Category',
-                                'Category Group': 'Category Group',
-                                'Topic': 'Topic',
-                                'Entities': 'Entities',
-                                'Location': 'Location',
-                                'Author': 'Author',
-                                'Rating': 'Rating',
-                                'Date': 'Date',
-                                'Overall Sentiment': 'Overall Sentiment',
-                                'review_id': 'Review'}, height=500,
-                 disabled=['sentiment_category',
-                           'text_in_english',                            
-                           'stars',
-                           'reviewSource', 
-                           'date',
-                           'url'],
+                column_config={'select': 'Select',
+                               'sentence_sentiment': 'Sentiment',
+                               'sentence_text': 'Sentence',
+                               'sentence_category': 'Category',
+                               'sentence_category_group': 'Category Group',
+                               'sentence_topic': 'Topic',
+                               'entities': 'Entities',
+                               'place_name': 'Location',
+                               'author': 'Author',
+                               'rating': 'Rating',
+                               'review_date': 'Date',
+                               'sentiment': 'Overall Sentiment'
+                                }, height=500,
+                 disabled=['review_id',
+                           'place_id'],
                 use_container_width=True, hide_index=True)
-    # ^^^ ANDY
     #st.data_editor(detailed_data[display_columns], disabled=False, hide_index=True, use_container_width=True)
 else:
     st.write("No data available for the selected filters.")
