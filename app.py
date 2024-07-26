@@ -233,8 +233,6 @@ if sentence_category_group:
 if sentence_topic:
     detailed_data = detailed_data[detailed_data['sentence_topic'].isin(sentence_topic)]
 
-
-
 # Add a 'select' column for the selector widget
 detailed_data['select'] = ""
 
@@ -301,28 +299,38 @@ else:
 st.divider()
 st.header("Customer Success")
 
-st.text("here will be a review level table with an option to select particular review.")
-
-#filtered_reviews['color'] = filtered_reviews['sentiment'].apply(color_for_value)
-
-selected_data = st.data_editor(filtered_reviews[['sentiment',
-                                'review_text',                            
-                                'rating',
-                                'place_name', 
-                                'review_date',
-                                'author']].style.map(
+# Add the 'Select' checkbox to each row
+if not filtered_reviews.empty:
+    filtered_reviews['select'] = False
+    filtered_reviews['rating'] = filtered_reviews['rating'].astype(float).round(1)
+    selected_data = st.data_editor(filtered_reviews[['select', 'sentiment', 'review_text', 'rating', 'place_name', 'review_date', 'author']].style.map(
             sentiment_color, subset=["sentiment"]
         ), 
-                column_config={'sentiment': 'Sentiment',
-                                'review_text': 'Text',
-                                'rating': 'Rating',
-                                'place_name': 'Location',
-                                'review_date': 'Date',
-                                'author': 'Author'},
-                 disabled=['sentiment',
-                           'review_text',                            
-                           'rating',
-                           'place_name', 
-                           'review_date',
-                           'author'],
+                column_config={'select': 'Select',
+                               'sentiment': 'Sentiment',
+                               'review_text': 'Text',
+                               'rating': 'Rating',
+                               'place_name': 'Location',
+                               'review_date': 'Date',
+                               'author': 'Author'},
+                 disabled=['sentiment', 'review_text', 'rating', 'place_name', 'review_date', 'author'],
                 use_container_width=True, hide_index=True)
+else:
+    st.write("No data available for the selected filters.")
+
+col8, col9,  = st.columns(2, gap='medium')
+
+with col8:
+    # Display the review_text of selected reviews in the text area below the table
+    if not selected_data.empty:
+        selected_reviews = selected_data[selected_data['select'] == True]['review_text']
+        selected_text = "\n\n".join(selected_reviews.tolist())
+        st.text_area("Selected Review Texts", selected_text, height=200)
+    else:
+        st.write("No reviews selected.")
+
+with col9:
+    # Add a large text field above the table
+    customer_success_text = st.text_area("Customer Success Notes", height=200)
+
+
