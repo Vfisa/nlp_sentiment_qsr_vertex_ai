@@ -267,8 +267,8 @@ with col6:
 with col7:
     st.subheader("Word Cloud")
     if not filtered_entities.empty:
-        wordcloud = WordCloud(width=400, height=800, background_color='white').generate(" ".join(filtered_entities['entity']))
-        plt.figure(figsize=(10, 20))
+        wordcloud = WordCloud(width=600, height=600, background_color='white').generate(" ".join(filtered_entities['entity']))
+        plt.figure(figsize=(10, 10))
         plt.imshow(wordcloud, interpolation='bilinear')
         plt.axis("off")
         st.pyplot(plt)
