@@ -152,4 +152,3 @@ cython_debug/
 #.idea/
 .streamlit/secrets.toml
 .vscode
-data
