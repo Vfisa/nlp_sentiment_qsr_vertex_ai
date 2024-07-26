@@ -199,7 +199,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 with col4:
     st.subheader("Classification")
-    sentence_category = st.multiselect("Select Sentence Categories", options=review_sentence['sentence_category'].dropna().unique().tolist())
+    categories = review_sentence['sentence_category'].dropna().unique().tolist()
+    categories = ["Experience", "Food", "People"]
+    sentence_category = st.multiselect("Select Sentence Categories", options=categories)
 
     # Filter category groups and topics based on selected categories
     filtered_review_sentence = review_sentence.copy()
@@ -276,14 +278,12 @@ with col7:
         st.write("No data available for the selected filters.")
 
 st.divider()
-st.header("Review Feedback")
+st.header("Review Details")
+
+display_columns = ['sentence_sentiment', 'sentence_text', 'sentence_category', 'sentence_category_group', 'sentence_topic', 'entities', 'place_name', 'author', 'rating', 'review_date', 'sentiment']
 
 if not detailed_data.empty:
-    selected_data = st.data_editor(detailed_data.style.map(
-            sentiment_color, subset=["sentence_sentiment"]
-        ),
-                column_config={'select': 'Select',
-                               'sentence_sentiment': 'Sentiment',
+    st.data_editor(detailed_data[display_columns], column_config={'sentence_sentiment': 'Sentiment',
                                'sentence_text': 'Sentence',
                                'sentence_category': 'Category',
                                'sentence_category_group': 'Category Group',
@@ -294,12 +294,13 @@ if not detailed_data.empty:
                                'rating': 'Rating',
                                'review_date': 'Date',
                                'sentiment': 'Overall Sentiment'
-                                }, height=500,
-                 disabled=['review_id',
-                           'place_id'],
-                use_container_width=True, hide_index=True)
-    #st.data_editor(detailed_data[display_columns], disabled=False, hide_index=True, use_container_width=True)
+                                }, disabled=False, hide_index=True, use_container_width=True)
 else:
     st.write("No data available for the selected filters.")
+
+st.divider()
+st.header("Customer Success")
+
+st.text("here will be a review level table with an option to select particular review.")
 
 
