@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import plotly.express as px
 import plotly.graph_objects as go
 import os 
@@ -143,6 +142,9 @@ if brand_selection and location_selection:
         place_ids = filtered_locations[filtered_locations['place_street'].isin(location_selection)]['place_id'].unique()
         filtered_reviews = filtered_reviews[filtered_reviews['place_id'].isin(place_ids)]
 
+# Apply filters to review_entity dataset
+filtered_entities = review_entity[review_entity['review_id'].isin(filtered_reviews['review_id'])]
+
 # Main layout
 st.divider()
 st.header("Overview")
@@ -151,39 +153,44 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 with col1:
     st.subheader("Sentiment")
-    sentiment_distribution = filtered_reviews['rating'].value_counts().sort_index()
-    fig = px.bar(sentiment_distribution, x=sentiment_distribution.index, y=sentiment_distribution.values, labels={'x':'Rating', 'y':'Count'})
-    st.plotly_chart(fig)
+    if not filtered_reviews.empty:
+        sentiment_distribution = filtered_reviews['rating'].value_counts().sort_index()
+        fig = px.bar(sentiment_distribution, x=sentiment_distribution.index, y=sentiment_distribution.values, labels={'x':'Rating', 'y':'Count'})
+        st.plotly_chart(fig)
+    else:
+        st.write("No data available for the selected filters.")
 
 with col2:
     st.subheader("Location Map")
-    # Merge location and filtered reviews to get average sentiment per location
-    merged_data = filtered_reviews.merge(location, on='place_id')
-    avg_sentiment = merged_data.groupby(['formatted_address', 'latitude', 'longitude'])['rating'].mean().reset_index()
-    avg_sentiment['text'] = avg_sentiment['formatted_address'] + ': ' + avg_sentiment['rating'].round(2).astype(str)
-    
-    fig = px.scatter_mapbox(
-        avg_sentiment, 
-        lat='latitude', 
-        lon='longitude', 
-        text='text', 
-        size='rating', 
-        color='rating', 
-        color_continuous_scale=px.colors.cyclical.IceFire, 
-        size_max=15, 
-        zoom=10
-    )
+    if not filtered_reviews.empty:
+        # Merge location and filtered reviews to get average sentiment per location
+        merged_data = filtered_reviews.merge(location, on='place_id')
+        avg_sentiment = merged_data.groupby(['formatted_address', 'latitude', 'longitude'])['rating'].mean().reset_index()
+        avg_sentiment['text'] = avg_sentiment['formatted_address'] + ': ' + avg_sentiment['rating'].round(2).astype(str)
+        
+        fig = px.scatter_mapbox(
+            avg_sentiment, 
+            lat='latitude', 
+            lon='longitude', 
+            text='text', 
+            size='rating', 
+            color='rating', 
+            color_continuous_scale=px.colors.cyclical.IceFire, 
+            size_max=15
+        )
 
-    # Center and zoom map on all points
-    # ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain", "stamen-toner", "stamen-watercolor"]
-    lat_center = avg_sentiment['latitude'].mean()
-    lon_center = avg_sentiment['longitude'].mean()
-    fig.update_layout(
-        mapbox_style="carto-positron",
-        mapbox_center={"lat": lat_center, "lon": lon_center},
-        mapbox_zoom=2
-    )
-    st.plotly_chart(fig)
+        # Center and zoom map on selected locations
+        if not avg_sentiment.empty:
+            lat_center = avg_sentiment['latitude'].mean()
+            lon_center = avg_sentiment['longitude'].mean()
+            fig.update_layout(
+                mapbox_style="carto-positron",
+                mapbox_center={"lat": lat_center, "lon": lon_center},
+                mapbox_zoom=10
+            )
+        st.plotly_chart(fig)
+    else:
+        st.write("No data available for the selected filters.")
 
 st.divider()
 st.header("Entities")
@@ -192,23 +199,108 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 with col4:
     st.subheader("Classification")
-    st.text("Filters: sentence_category, sentence_category_group, sentence_topic")
+    sentence_category = st.multiselect("Select Sentence Categories", options=review_sentence['sentence_category'].dropna().unique().tolist())
+
+    # Filter category groups and topics based on selected categories
+    filtered_review_sentence = review_sentence.copy()
+    if sentence_category:
+        filtered_review_sentence = filtered_review_sentence[filtered_review_sentence['sentence_category'].isin(sentence_category)]
+
+    sentence_category_group = st.multiselect("Select Sentence Category Groups", options=filtered_review_sentence['sentence_category_group'].dropna().unique().tolist())
+    
+    # Further filter topics based on selected categories and category groups
+    if sentence_category_group:
+        filtered_review_sentence = filtered_review_sentence[filtered_review_sentence['sentence_category_group'].isin(sentence_category_group)]
+        
+    sentence_topic = st.multiselect("Select Sentence Topics", options=filtered_review_sentence['sentence_topic'].dropna().unique().tolist())
+
+# Filter review_entity based on selected categories, category groups, and topics
+if sentence_category:
+    filtered_entities = filtered_entities[filtered_entities['sentence_category'].isin(sentence_category)]
+if sentence_category_group:
+    filtered_entities = filtered_entities[filtered_entities['sentence_category_group'].isin(sentence_category_group)]
+if sentence_topic:
+    filtered_entities = filtered_entities[filtered_entities['sentence_topic'].isin(sentence_topic)]
 
 with col5:
-    st.subheader("Positive")
-    st.text("Top 10 positive entities based on frequency")
+    st.subheader("Positive Entities")
+    if not filtered_entities.empty:
+        positive_entities = filtered_entities[filtered_entities['sentence_sentiment'] == 'Positive']['entity'].value_counts().head(10).sort_values(ascending=True)
+        if not positive_entities.empty:
+            fig_positive = px.bar(positive_entities, x=positive_entities.values, y=positive_entities.index, orientation='h')
+            fig_positive.update_layout(xaxis_title=None, yaxis_title=None)
+            fig_positive.update_traces(marker_color='#34A853')  # Green color
+            st.plotly_chart(fig_positive)
+        else:
+            st.write("No positive entities available for the selected filters.")
+    else:
+        st.write("No data available for the selected filters.")
 
 with col6:
-    st.subheader("Negative")
-    st.text("Top 10 negative entities based on frequency")
+    st.subheader("Negative Entities")
+    if not filtered_entities.empty:
+        negative_entities = filtered_entities[filtered_entities['sentence_sentiment'] == 'Negative']['entity'].value_counts().head(10).sort_values(ascending=True)
+        if not negative_entities.empty:
+            fig_negative = px.bar(negative_entities, x=negative_entities.values, y=negative_entities.index, orientation='h')
+            fig_negative.update_layout(xaxis_title=None, yaxis_title=None)
+            fig_negative.update_traces(marker_color='#FF5733')  # Reddish-orange color
+            st.plotly_chart(fig_negative)
+        else:
+            st.write("No negative entities available for the selected filters.")
+    else:
+        st.write("No data available for the selected filters.")
 
 with col7:
-    st.subheader("Entities")
-    st.text("Word cloud from entities")
+    st.subheader("Word Cloud")
+    if not filtered_entities.empty:
+        wordcloud = WordCloud(width=400, height=800, background_color='white').generate(" ".join(filtered_entities['entity']))
+        plt.figure(figsize=(10, 20))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis("off")
+        st.pyplot(plt)
+    else:
+        st.write("No data available for the selected filters.")
 
 st.divider()
 st.header("Details")
-st.text("Table with data from review_sentence and additional columns from location_review")
+
+# Merge review_sentence with location_review for detailed view
+detailed_data = review_sentence.merge(location_review, on='review_id', suffixes=('_sentence', '_review'))
+
+# Add a 'select' column for the selector widget
+detailed_data['select'] = ""
+
+# Arrange columns in the specified order
+columns_order = [
+    'select', 'sentence_sentiment', 'sentence_text', 'sentence_category', 
+    'sentence_category_group', 'sentence_topic', 'entities', 'review_id', 
+    'place_id', 'place_name', 'author', 'rating', 'review_date', 'sentiment'
+]
+detailed_data = detailed_data[columns_order]
+
+# Rename columns
+detailed_data.rename(columns={
+    'select': 'Select',
+    'sentence_sentiment': 'Sentiment',
+    'sentence_text': 'Sentence',
+    'sentence_category': 'Category',
+    'sentence_category_group': 'Category Group',
+    'sentence_topic': 'Topic',
+    'entities': 'Entities',
+    'place_name': 'Location',
+    'author': 'Author',
+    'rating': 'Rating',
+    'review_date': 'Date',
+    'sentiment': 'Overall Sentiment'
+}, inplace=True)
+
+# Hide 'review_id' and 'place_id' columns from display
+display_columns = ['Select', 'Sentiment', 'Sentence', 'Location', 'Category', 'Category Group', 'Topic', 'Entities', 'Author', 'Rating', 'Date', 'Overall Sentiment']
+
+if not detailed_data.empty:
+    st.data_editor(detailed_data[display_columns], disabled=False, hide_index=True, use_container_width=True)
+else:
+    st.write("No data available for the selected filters.")
 
 # Placeholder for the main content
 st.write("""
