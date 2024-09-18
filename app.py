@@ -131,7 +131,7 @@ filtered_reviews = location_review.copy()
 # Apply Review Date filter
 if review_date:
     start_date, end_date = review_date
-    filtered_reviews = filtered_reviews[(filtered_reviews['review_date'] >= pd.to_datetime(start_date)) & (filtered_reviews['review_date'] <= pd.to_datetime(end_date))]
+    filtered_reviews = filtered_reviews[(filtered_reviews['feedback_date'] >= pd.to_datetime(start_date)) & (filtered_reviews['feedback_date'] <= pd.to_datetime(end_date))]
 
 # Apply Sentiment Score filter
 filtered_reviews = filtered_reviews[(filtered_reviews['rating'] >= sentiment_score[0]) & (filtered_reviews['rating'] <= sentiment_score[1])]
@@ -139,8 +139,8 @@ filtered_reviews = filtered_reviews[(filtered_reviews['rating'] >= sentiment_sco
 # Apply Brand and Location filters
 if brand_selection and location_selection:
     if "All" not in brand_selection:
-        place_ids = filtered_locations[filtered_locations['street'].isin(location_selection)]['place_id'].unique()
-        filtered_reviews = filtered_reviews[filtered_reviews['place_id'].isin(place_ids)]
+        place_ids = filtered_locations[filtered_locations['street'].isin(location_selection)]['store_id'].unique()
+        filtered_reviews = filtered_reviews[filtered_reviews['store_id'].isin(place_ids)]
 
 # Apply filters to review_entity dataset
 filtered_entities = review_entity[review_entity['feedback_id'].isin(filtered_reviews['feedback_id'])]
@@ -164,7 +164,7 @@ with col2:
     st.subheader("Location Map")
     if not filtered_reviews.empty:
         # Merge location and filtered reviews to get average sentiment per location
-        merged_data = filtered_reviews.merge(location, on='place_id')
+        merged_data = filtered_reviews.merge(location, on='store_id')
         avg_sentiment = merged_data.groupby(['address', 'latitude', 'longitude'])['rating'].mean().reset_index()
         avg_sentiment['text'] = avg_sentiment['address'] + ': ' + avg_sentiment['rating'].round(2).astype(str)
         
