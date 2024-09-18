@@ -77,7 +77,7 @@ review_sentence = read_data('/data/in/tables/review_sentence.csv')
 review_entity = read_data('/data/in/tables/review_entity.csv')
 
 # Clean up datetimes
-location_review['review_date'] = pd.to_datetime(location_review['review_date'], format='mixed').dt.tz_localize(None)
+location_review['feedback_date'] = pd.to_datetime(location_review['feedback_date'], format='mixed').dt.tz_localize(None)
 
 # Generate unique list of brands
 brand_options = location['brand'].dropna().unique().tolist()
@@ -113,8 +113,8 @@ with st.sidebar:
         filtered_locations = location[location['brand'].isin(brand_selection)]
     
     # Generate unique combinations of place_name and street
-    filtered_locations['place_street'] = filtered_locations['place_name'] + " - " + filtered_locations['street']
-    location_options = filtered_locations['place_street'].unique().tolist()
+    filtered_locations['street'] = filtered_locations['store_id'] + " - " + filtered_locations['street']
+    location_options = filtered_locations['street'].unique().tolist()
     location_options.insert(0, "All")
     
     # Location filter
@@ -139,11 +139,11 @@ filtered_reviews = filtered_reviews[(filtered_reviews['rating'] >= sentiment_sco
 # Apply Brand and Location filters
 if brand_selection and location_selection:
     if "All" not in brand_selection:
-        place_ids = filtered_locations[filtered_locations['place_street'].isin(location_selection)]['place_id'].unique()
+        place_ids = filtered_locations[filtered_locations['street'].isin(location_selection)]['place_id'].unique()
         filtered_reviews = filtered_reviews[filtered_reviews['place_id'].isin(place_ids)]
 
 # Apply filters to review_entity dataset
-filtered_entities = review_entity[review_entity['review_id'].isin(filtered_reviews['review_id'])]
+filtered_entities = review_entity[review_entity['feedback_id'].isin(filtered_reviews['feedback_id'])]
 
 # Main layout
 st.divider()
@@ -165,8 +165,8 @@ with col2:
     if not filtered_reviews.empty:
         # Merge location and filtered reviews to get average sentiment per location
         merged_data = filtered_reviews.merge(location, on='place_id')
-        avg_sentiment = merged_data.groupby(['formatted_address', 'latitude', 'longitude'])['rating'].mean().reset_index()
-        avg_sentiment['text'] = avg_sentiment['formatted_address'] + ': ' + avg_sentiment['rating'].round(2).astype(str)
+        avg_sentiment = merged_data.groupby(['address', 'latitude', 'longitude'])['rating'].mean().reset_index()
+        avg_sentiment['text'] = avg_sentiment['address'] + ': ' + avg_sentiment['rating'].round(2).astype(str)
         
         fig = px.scatter_mapbox(
             avg_sentiment, 
@@ -225,7 +225,7 @@ if sentence_topic:
     filtered_entities = filtered_entities[filtered_entities['sentence_topic'].isin(sentence_topic)]
 
 # Filter detailed_data based on the same filters
-detailed_data = review_sentence.merge(location_review, on='review_id', suffixes=('_sentence', '_review'))
+detailed_data = review_sentence.merge(location_review, on='feedback_id', suffixes=('_sentence', '_review'))
 if sentence_category:
     detailed_data = detailed_data[detailed_data['sentence_category'].isin(sentence_category)]
 if sentence_category_group:
@@ -277,7 +277,7 @@ with col7:
 
 st.header("Review Details")
 
-display_columns = ['sentence_sentiment', 'sentence_text', 'sentence_category', 'sentence_category_group', 'sentence_topic', 'entities', 'place_name', 'author', 'rating', 'review_date', 'sentiment']
+display_columns = ['sentence_sentiment', 'sentence_text', 'sentence_category', 'sentence_category_group', 'sentence_topic', 'entities', 'store_id', 'author', 'rating', 'feedback_date', 'sentiment']
 
 if not detailed_data.empty:
     st.data_editor(detailed_data[display_columns], column_config={'sentence_sentiment': 'Sentiment',
@@ -286,10 +286,10 @@ if not detailed_data.empty:
                                'sentence_category_group': 'Category Group',
                                'sentence_topic': 'Topic',
                                'entities': 'Entities',
-                               'place_name': 'Location',
+                               'store_id': 'Location',
                                'author': 'Author',
                                'rating': 'Rating',
-                               'review_date': 'Date',
+                               'feedback_date': 'Date',
                                'sentiment': 'Overall Sentiment'
                                 }, disabled=False, hide_index=True, use_container_width=True)
 else:
@@ -302,17 +302,17 @@ st.header("Customer Success")
 if not filtered_reviews.empty:
     filtered_reviews['select'] = False
     filtered_reviews['rating'] = filtered_reviews['rating'].astype(float).round(1)
-    selected_data = st.data_editor(filtered_reviews[['select', 'sentiment', 'review_text', 'rating', 'place_name', 'review_date', 'author']].style.map(
+    selected_data = st.data_editor(filtered_reviews[['select', 'sentiment', 'feedback_text', 'rating', 'store_id', 'feedback_date', 'author']].style.map(
             sentiment_color, subset=["sentiment"]
         ), 
                 column_config={'select': 'Select',
                                'sentiment': 'Sentiment',
-                               'review_text': 'Text',
+                               'feedback_text': 'Text',
                                'rating': 'Rating',
-                               'place_name': 'Location',
-                               'review_date': 'Date',
+                               'store_id': 'Location',
+                               'feedback_date': 'Date',
                                'author': 'Author'},
-                 disabled=['sentiment', 'review_text', 'rating', 'place_name', 'review_date', 'author'],
+                 disabled=['sentiment', 'feedback_text', 'rating', 'store_id', 'feedback_date', 'author'],
                 use_container_width=True, hide_index=True)
 else:
     st.write("No data available for the selected filters.")
@@ -326,7 +326,7 @@ with col8:
     selected_sum = selected_data['select'].sum()
 
     if selected_sum == 1:
-        selected_review = selected_data.loc[selected_data['select'] == True, 'review_text'].iloc[0]
+        selected_review = selected_data.loc[selected_data['select'] == True, 'feedback_text'].iloc[0]
         review_text = selected_review if selected_review else st.info('No review found.')  
         st.write(f'**Selected Review**\n\n{review_text}')
 
